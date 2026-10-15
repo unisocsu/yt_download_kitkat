@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">מוריד סרטונים</string>
+    <string name="hint_url">הדבק כאן כתובת של סרטון</string>
+    <string name="audio_only">אודיו בלבד (m4a)</string>
+    <string name="download">הורד</string>
+    <string name="status_idle">מוכן</string>
+</resources>
