@@ -24,12 +24,12 @@ public final class Downloader {
         long done = 0;
         try {
             if (info.length <= 0) {
-                done = copy(open(ctx, info.url), fos, done, 0, p);
+                done = copy(open(ctx, info.url, info.userAgent), fos, done, 0, p);
             } else {
                 long pos = 0;
                 while (pos < info.length) {
                     long end = Math.min(pos + CHUNK, info.length - 1);
-                    done = copy(open(ctx, info.url + "&range=" + pos + "-" + end), fos, done, info.length, p);
+                    done = copy(open(ctx, info.url + "&range=" + pos + "-" + end, info.userAgent), fos, done, info.length, p);
                     pos = end + 1;
                 }
             }
@@ -41,12 +41,12 @@ public final class Downloader {
         fos.close();
     }
 
-    private static InputStream open(Context ctx, String u) throws Exception {
+    private static InputStream open(Context ctx, String u, String ua) throws Exception {
         HttpsURLConnection c = (HttpsURLConnection) new URL(u).openConnection();
         c.setSSLSocketFactory(CertStore.get(ctx));
         c.setConnectTimeout(15000);
         c.setReadTimeout(30000);
-        c.setRequestProperty("User-Agent", YouTube.USER_AGENT);
+        c.setRequestProperty("User-Agent", ua);
         int code = c.getResponseCode();
         if (code != 200 && code != 206) throw new Exception("HTTP " + code + " בהורדה");
         return c.getInputStream();

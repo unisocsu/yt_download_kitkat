@@ -69,30 +69,39 @@ public class MainActivity extends Activity {
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
-                    setStatus("מאתר את הסרטון...");
-                    YouTube.Info info = YouTube.resolve(app, id, audio);
+                StringBuilder errors = new StringBuilder();
+                boolean ok = false;
+                for (int i = 0; i < YouTube.CLIENTS.length && !ok; i++) {
+                    YouTube.Client cl = YouTube.CLIENTS[i];
+                    try {
+                        setStatus("מאתר את הסרטון (" + cl.name + ")...");
+                        YouTube.Info info = YouTube.resolve(app, id, audio, cl);
 
-                    File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                    dir.mkdirs();
-                    File out = new File(dir, safeName(info.title) + "." + info.ext);
+                        File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                        dir.mkdirs();
+                        File out = new File(dir, safeName(info.title) + "." + info.ext);
 
-                    setStatus("מוריד: " + info.title);
-                    Downloader.download(app, info, out, new Downloader.Progress() {
-                        @Override public void onProgress(final long done, final long total) {
-                            runOnUiThread(new Runnable() {
-                                @Override public void run() {
-                                    if (total > 0) bar.setProgress((int) (done * 100 / total));
-                                    status.setText((done / 1024 / 1024) + "MB"
-                                            + (total > 0 ? " / " + (total / 1024 / 1024) + "MB" : ""));
-                                }
-                            });
-                        }
-                    });
+                        setStatus("מוריד: " + info.title);
+                        Downloader.download(app, info, out, new Downloader.Progress() {
+                            @Override public void onProgress(final long done, final long total) {
+                                runOnUiThread(new Runnable() {
+                                    @Override public void run() {
+                                        if (total > 0) bar.setProgress((int) (done * 100 / total));
+                                        status.setText((done / 1024 / 1024) + "MB"
+                                                + (total > 0 ? " / " + (total / 1024 / 1024) + "MB" : ""));
+                                    }
+                                });
+                            }
+                        });
 
-                    MediaScannerConnection.scanFile(app, new String[]{out.getAbsolutePath()}, null, null);
-                    setStatus("הסתיים: " + out.getAbsolutePath());
-                } catch (Exception e) {
-                    setStatus("שגיאה: " + e.getMessage());
+                        MediaScannerConnection.scanFile(app, new String[]{out.getAbsolutePath()}, null, null);
+                        setStatus("הסתיים: " + out.getAbsolutePath());
+                        ok = true;
+                    } catch (Exception e) {
+                        errors.append(cl.name).append(": ").append(e.getMessage()).append("\n");
+                    }
+                }
+                if (!ok) setStatus("נכשל בכל ה-clients:\n" + errors);
                 } finally {
                     busy = false;
                     runOnUiThread(new Runnable() {
