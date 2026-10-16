@@ -21,6 +21,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      # yt-dlp צריך סביבת JavaScript כדי לחלץ סרטונים מיוטיוב
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install yt-dlp and ffmpeg
         run: |
           pip install -U "yt-dlp[default]"
@@ -40,15 +46,17 @@ jobs:
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
-          if [ -n "$YT_COOKIES" ]; then
-            printf '%s' "$YT_COOKIES" > cookies.txt
+          if [ -z "$YT_COOKIES" ]; then
+            echo "::error::חסר הסוד YT_COOKIES. יוטיוב חוסמת הורדות משרתי GitHub בלי cookies. ראה הנחיות להוספה בהגדרות הריפו."
+            exit 1
           fi
+          printf '%s\n' "$YT_COOKIES" > cookies.txt
 
       - name: Download channel
         run: |
-          COOKIE_ARG=""
-          [ -f cookies.txt ] && COOKIE_ARG="--cookies cookies.txt"
-          yt-dlp $COOKIE_ARG \
+          yt-dlp \
+            --cookies cookies.txt \
+            --js-runtimes node \
             --download-archive archive.txt \
             --format "bv*[height<=1080]+ba/b[height<=1080]" \
             --merge-output-format mp4 \
@@ -57,6 +65,7 @@ jobs:
             --write-thumbnail \
             --write-subs --sub-langs "all" \
             --ignore-errors \
+            --retries 5 \
             --sleep-interval 3 --max-sleep-interval 8 \
             --output "backup/%(upload_date)s - %(title).150B [%(id)s].%(ext)s" \
             "$CHANNEL_URL"
