@@ -29,8 +29,14 @@ jobs:
 
       - name: Install yt-dlp and ffmpeg
         run: |
-          pip install -U "yt-dlp[default]"
+          pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
           sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      # שירות שמייצר PO tokens, שיוטיוב דורשת מכתובות של שרתי ענן
+      - name: Start PO token provider
+        run: |
+          docker run --name bgutil-provider -d -p 4416:4416 --init brainicism/bgutil-ytdlp-pot-provider
+          sleep 10
 
       # שומר את רשימת הסרטונים שכבר הורדו, כדי שבכל הרצה יורדו רק חדשים
       - name: Restore download archive
@@ -63,7 +69,7 @@ jobs:
             --write-info-json \
             --write-description \
             --write-thumbnail \
-            --write-subs --sub-langs "all" \
+            --write-subs --sub-langs "all,-live_chat" \
             --ignore-errors \
             --retries 5 \
             --sleep-interval 3 --max-sleep-interval 8 \
