@@ -1,0 +1,74 @@
+name: Backup YouTube Channel
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel_url:
+        description: "כתובת הערוץ, למשל https://www.youtube.com/@MyChannel/videos"
+        required: true
+        type: string
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      CHANNEL_URL: ${{ inputs.channel_url }}
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install yt-dlp and ffmpeg
+        run: |
+          pip install -U "yt-dlp[default]"
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      # שומר את רשימת הסרטונים שכבר הורדו, כדי שבכל הרצה יורדו רק חדשים
+      - name: Restore download archive
+        uses: actions/cache@v4
+        with:
+          path: archive.txt
+          key: yt-archive-${{ github.run_id }}
+          restore-keys: yt-archive-
+
+      # אופציונלי: קובץ cookies של החשבון שלך (בפורמט Netscape) כסוד בשם YT_COOKIES
+      # יוטיוב לעיתים חוסמת כתובות של שרתי ענן, וה-cookies עוזרים בזה
+      - name: Prepare cookies
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: |
+          if [ -n "$YT_COOKIES" ]; then
+            printf '%s' "$YT_COOKIES" > cookies.txt
+          fi
+
+      - name: Download channel
+        run: |
+          COOKIE_ARG=""
+          [ -f cookies.txt ] && COOKIE_ARG="--cookies cookies.txt"
+          yt-dlp $COOKIE_ARG \
+            --download-archive archive.txt \
+            --format "bv*[height<=1080]+ba/b[height<=1080]" \
+            --merge-output-format mp4 \
+            --write-info-json \
+            --write-description \
+            --write-thumbnail \
+            --write-subs --sub-langs "all" \
+            --ignore-errors \
+            --sleep-interval 3 --max-sleep-interval 8 \
+            --output "backup/%(upload_date)s - %(title).150B [%(id)s].%(ext)s" \
+            "$CHANNEL_URL"
+
+      - name: Remove cookies
+        if: always()
+        run: rm -f cookies.txt
+
+      - name: Upload backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-backup-${{ github.run_number }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: ignore
